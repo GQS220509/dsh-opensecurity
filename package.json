@@ -1,0 +1,93 @@
+{
+  "name": "dsh-opensecurity",
+  "version": "0.1.0",
+  "description": "OpenSecurity for DeepSeek Harness — a双面(bundle+client) plugin: IDA-driven binary reverse-engineering tool surface (os_* tools + knowledge-base skills + closed-book gate) plus in-place mermaid diagram rendering in the Web UI.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./diagram": "./lib/diagram.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1",
+    "@deepseek-ai/dsh-client-runtime": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-primitives": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-llm": ">=0.1.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.0",
+    "@deepseek-ai/schemastery": ">=3.18.1",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-runtime": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-primitives": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "mermaid": "^11.0.0"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "agent-presets",
+    "overlays",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node --experimental-vm-modules scripts/check.mjs"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GQS220509/dsh-opensecurity.git"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "dsh-plugin",
+    "opensecurity",
+    "ida",
+    "reverse-engineering",
+    "mermaid",
+    "diagram"
+  ]
+}

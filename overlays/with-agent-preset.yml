@@ -1,0 +1,22 @@
+# 可选覆盖层：把 OpenSecurity 收窄成一个 agent preset。
+#
+# 为什么不能随包自动生效：agent preset 的 roster 只按「目录」发现（扫 roots 里每个
+# 子目录），而随包目录的真实路径里含 profile 名 —— 插件在组合期无法知道自己是装在
+# 哪个 profile 下的。因此这一步交给使用者，一行搞定。
+#
+# 用法（两种任选）：
+#   1. 把下面 5 行贴进 ~/.ohdsh/profiles/<你的 profile>/cordis.patch.yml，
+#      并把 `<你的 profile>` 换成实际 profile 名（例如 web / binary）。
+#   2. 或者启动时叠加：
+#        dsh --profile <你的 profile> --patch <本插件安装目录>/overlays/with-agent-preset.yml
+#      （同样需要先把下面的 <你的 profile> 改掉）
+#
+# 生效后：新建会话时可选 preset「二进制分析」；该 preset 里只挂 os_* 工具面 ——
+# 没有 shell、没有文件系统工具、没有子代理、不联网，**能力面的收窄本身就是强制手段**。
+
+- id: agent-presets
+  config:
+    default: binary-analysis
+    roots:
+      - path: !!js dshHomePath('profiles/<你的 profile>/node_modules/dsh-opensecurity/agent-presets')
+        trust: system

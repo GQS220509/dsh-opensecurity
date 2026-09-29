@@ -1,0 +1,21 @@
+# 依赖与构建产物
+node_modules/
+pnpm-lock.yaml
+
+# Python 缓存（随包 assets 里不应出现 .pyc）
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行期产物
+tmp/
+*.log
+.dsh-*/
+artifacts/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

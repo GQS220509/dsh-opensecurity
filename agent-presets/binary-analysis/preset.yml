@@ -1,0 +1,3 @@
+﻿name: 二进制分析
+description: OpenSecurity 二进制逆向分析专用 Agent：只挂载 os_* 工具面（IDA 静态/动态分析 + 按需加载的方法论 skill），不挂 bash、不挂文件系统、不挂子代理、不联网。
+order: 10

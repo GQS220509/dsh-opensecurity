@@ -1,0 +1,24 @@
+# 反向覆盖层：保留联网能力（关掉本插件默认的「闭卷」）。
+#
+# 用法：
+#   dsh --profile web --patch <本插件安装目录>/overlays/enable-network.yml
+#
+# 补丁按「最后一次写入获胜」逐行覆盖，且替换的是目标行的整个 config，
+# 所以下面每行都完整重述它拥有的键（含 dsh-base 原本的默认值）。
+
+- id: tool-web
+  config:
+    search: true
+    fetch: false
+    searchTimeoutMs: 60000
+  disabled: false
+
+- id: web
+  config:
+    searchProvider: deepseek-official
+  disabled: false
+
+- id: web-search-deepseek
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+  disabled: false

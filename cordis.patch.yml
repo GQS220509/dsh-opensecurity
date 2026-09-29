@@ -1,0 +1,84 @@
+# dsh-opensecurity — bundle patch (dsh 组合包补丁层)
+#
+# 一次安装得到两件事：
+#   1. OpenSecurity 二进制逆向能力：os_* 工具面（IDA 静态/动态分析）+ 知识库 skill
+#      + 首步门禁（gate）。宿主侧实现见 lib/index.js。
+#   2. 图规范与渲染：Web 界面把回复里的 ```mermaid 代码块原位渲染成示意图。
+#      宿主侧实现见 lib/diagram.js，浏览器侧见 lib/client.js（由 dsh-client-modules
+#      扫描 package.json 的 dsh.client 声明后注入）。
+#
+# 这一层被 @deepseek-ai/dsh-base 与 surface bundle（dsh-web-app / dsh-headless …）
+# 之后应用，所以下面点名的每一行都已经存在，属于「按 id 覆盖」；`insert:` 段里的是
+# 本插件新增的行。补丁替换的是目标行的整个 config，因此每行都完整重述它拥有的键。
+
+# ── 1. 闭卷模式（默认开启）────────────────────────────────────────────────────
+#
+# 本插件的设计前提是「不许上网搜答案」：把联网工具与联网能力一起关掉，模型只能靠
+# 本地工具链和随包知识库解题。
+#
+#   * `tool-web` 带着两个面向模型的联网工具，默认开启；search/fetch 置 false 后
+#     工具消失。
+#   * `web` / `web-search-deepseek` 是能力提供方，disabled 后即使后续层重新打开
+#     工具行也拿不到后端。
+#
+# 想保留联网（例如你自己要用 web_search 查资料）有三种做法，任选一种：
+#   A. 删掉本文件中 BEGIN-OFFLINE 到 END-OFFLINE 之间的整段；
+#   B. 启动时叠加随包提供的反向覆盖层：
+#        dsh --profile web --patch <本插件安装目录>/overlays/enable-network.yml
+#   C. 在你自己的 profile 的 cordis.patch.yml 里重述这三行并写 disabled: false。
+#
+# BEGIN-OFFLINE
+
+- id: tool-web
+  config:
+    search: false
+    fetch: false
+  disabled: true
+
+- id: web
+  disabled: true
+
+- id: web-search-deepseek
+  disabled: true
+
+# END-OFFLINE
+
+# ── 2. 工具面与客户端能力 ─────────────────────────────────────────────────────
+#
+# 全局挂载：任何会话都能调用 os_* 工具。想把工具面收窄到单个 agent（不挂 bash、
+# 不挂文件系统、不联网），见 overlays/with-agent-preset.yml。
+
+- insert:
+    - id: opensecurity
+      name: 'dsh-opensecurity'
+      config:
+        # 指向一份完整的 OpenSecurity 代码检出可改用外部资产；留空则用随包的
+        # assets/binary-analysis（自包含，开箱即用）。
+        openSecurityRoot: ''
+        # idat.exe / idat64.exe 所在路径。留空时插件会在挂载时探测常见安装位置
+        # （安装版与便携版），并把结果写进 os_binary_boot 的报告。
+        idatPath: ''
+        # 单次 idat 调用的协作式墙钟预算（毫秒）。
+        idatTimeoutMs: 300000
+        # 产物根目录；留空走 $HOME/bw-security-analysis。
+        dataDir: ''
+        # .i64 被其它进程占用时拒绝调用 idat，避免写坏数据库。
+        refuseOnDatabaseLock: true
+        # 会话第一步注入门禁提醒（提示模型先调 os_binary_boot）。
+        gateOnFirstStep: true
+        # 数据库 mtime 未变时复用只读结果。
+        cacheResults: true
+
+    # 图渲染的宿主半边：注册 /dsh-opensecurity/mermaid.min.js 本地路由（不发 CDN），
+    # 并向每个 agent 注入画图规范。浏览器半边由 dsh.client 声明自动装配。
+    - id: opensecurity-diagram
+      name: 'dsh-opensecurity/diagram'
+      config:
+        enabled: true
+        announceToAgent: true
+
+# ── 3. （可选）把能力收窄成一个 agent preset ─────────────────────────────────
+#
+# agent preset 只能按「目录」发布，而目录路径里含 profile 名，因此无法在随包补丁里
+# 写死。需要的话把 overlays/with-agent-preset.yml 里的三行贴进你自己 profile 的
+# cordis.patch.yml，并把 <profile> 换成你的 profile 名。

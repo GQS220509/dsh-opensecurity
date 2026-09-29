@@ -1,0 +1,137 @@
+﻿# The `binary-analysis` agent preset: the OpenSecurity binary capability with
+# everything else taken away.
+#
+# This file is the answer to "how do I FORCE the plugin to be used". dsh has no
+# "first tool call must be X" primitive and no configuration that compels a
+# sampled tool call — a guard can only reject a call, never force one. What dsh
+# does offer is scope: a row mounted inside a preset registers into THAT preset's
+# layers, so the tool catalog an agent sees is exactly what this file mounts.
+#
+# So the forcing is done by narrowing the world rather than by commanding the
+# model. An agent on this preset has no shell, no filesystem tools, no subagent
+# delegation and no web access. The only actions available to it are the six
+# `os_*` tools and the skill loader. It cannot "decide to just use bash instead",
+# because there is no bash.
+#
+# The plugin row is mounted HERE rather than as a host row in the bundle patch
+# for exactly that reason: a host-plane mount would publish the tools to every
+# agent in every session, which is the opposite of what this preset is for.
+#
+# Scope rules this file obeys (from `dsh-agent-presets`): a row that publishes a
+# SERVICE must sit inside a group carrying an `isolate` realm, or it collides
+# with the same name in another preset. Every row below registers into the host
+# `tools` / `skills` registries and provides nothing, so none of them needs a
+# realm — the plugin itself is the only row that touches a service
+# (`ctx.subprocess`), and it only reads it.
+
+# ── identity ────────────────────────────────────────────────────────────────
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are a binary reverse-engineering analyst. Your working directory is {{cwd}}.
+      You work from evidence: every claim about a target must trace to output produced by
+      one of your tools or to a document in your knowledge base. You never guess an address,
+      a function name, or a value, and you never report something as verified unless a tool
+      you ran verified it.
+
+# ── the capability ──────────────────────────────────────────────────────────
+
+# Mounted by absolute path: the row lives in this preset file, whose directory is
+# the plugin package, so `../../lib/index.js` is the plugin entry point. A bare
+# package name would NOT resolve here — preset rows resolve bare specifiers
+# against the installed harness, and this package is installed in the profile,
+# not in the harness.
+- id: opensecurity-binary
+  name: !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('../../lib/index.js', baseUrl))"
+  config:
+    # The assets ship inside this package, so no external checkout is required.
+    openSecurityRoot: ''
+    idatPath: ''
+    dataDir: ''
+    idatTimeoutMs: 300000
+    refuseOnDatabaseLock: true
+    # The gate reminder is worth less here (there is nothing else to call), but
+    # it is still the only place the environment facts reach the model before its
+    # first tool choice.
+    gateOnFirstStep: true
+
+# ── skills ──────────────────────────────────────────────────────────────────
+
+# The knowledge base ships as skills inside this package, beside this preset, so
+# the root resolves relative to the composition file — no absolute path, and the
+# catalog travels with the plugin.
+#
+# `skill-filesystem` registers into THIS preset's layer of the host skill
+# registry, so these skills are visible only to agents on this preset.
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    includeDefaultRoots: false
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('../../assets/skills/', baseUrl))"
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# ── the rest of the model-facing surface ────────────────────────────────────
+#
+# Deliberately tiny. Each row here is an action the analyst can take that is not
+# a reverse-engineering query, so each one is a place the agent could wander off
+# into instead of doing the work. Only the two that keep a long analysis
+# coherent are mounted:
+#
+#   * `todo_write` — a multi-stage analysis needs visible stage tracking, or the
+#     model loses the thread across a compaction;
+#   * `ask_user_question` — the user owns choices the tools cannot discover
+#     (which target, which objective), and asking is cheaper than guessing.
+#
+# NOT mounted, on purpose: bash, pwsh, read/write/edit, glob/grep, todo's
+# siblings, subagents, workflows, goals, plan mode, web search/fetch. A file read
+# the analyst needs comes back inside a tool result; a question about the target
+# comes back from `os_ida_query`; a long search is a batch.
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: false
+
+# ── closed-book: no route to the answer ─────────────────────────────────────
+#
+# The rows above narrow the world; this one closes the remaining routes by name.
+# It matters when this preset runs inside a profile that KEEPS its network (the
+# `web` profile deliberately does, so ordinary work stays online): there the
+# global surface still carries `web_search`/`web_fetch`, and a shell is a network
+# client (`pwsh -c "iwr ..."`) — so "the preset has no web tools mounted" is not
+# by itself a guarantee.
+#
+# It is a no-op where the world is already narrow: in the `binary` profile the
+# web rows are deleted from the composition, so none of these names exist, and
+# the row reports them as "not on this surface" instead of failing.
+#
+# Mounted here, in the preset, so the mask lands on THIS scope: hidden for every
+# agent on this preset, invisible to the rest of the profile. To instead hide
+# these routes from the whole `web` profile, add a row with
+# `name: '../../lib/closed-book.js'` to that profile's cordis.patch.yml.
+#
+# The report it publishes as the `closedBook` service is the evidence: it lists
+# what was actually on the surface, what was denied, and what disappeared.
+- id: closed-book
+  name: !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('../../lib/closed-book.js', baseUrl))"
+  config:
+    mode: enforce
+    # Direct fetchers, shells (a shell is a network client), and the delegation
+    # tools that could spawn an agent whose own scope is not masked.
+    denylist:
+      - web_search
+      - web_fetch
+      - pwsh
+      - bash
+      - subagent
+      - workflow
+      - ralph
+
